@@ -3,105 +3,143 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Richieste Turni</title>
+<title>Disponibilità Settimanale</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f7fa; color: #222; }
-  header { background: #1c253a; color: #fff; padding: 20px 24px; }
-  header h1 { font-size: 1.4rem; }
-  header p  { font-size: 0.85rem; color: #94a5c8; margin-top: 4px; }
-  main { max-width: 640px; margin: 28px auto; padding: 0 16px 60px; }
-  .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 24px; margin-bottom: 24px; }
-  h2 { font-size: 1.05rem; margin-bottom: 16px; color: #1c253a; }
-  label { display: block; font-size: .88rem; margin-bottom: 4px; color: #555; }
-  select, input, textarea {
-    width: 100%; padding: 9px 12px; border: 1px solid #d0d5dd;
-    border-radius: 6px; font-size: .95rem; margin-bottom: 14px;
-    transition: border-color .2s;
-  }
-  select:focus, input:focus, textarea:focus { outline: none; border-color: #4285f4; }
-  textarea { resize: vertical; min-height: 80px; }
-  .row2 { display: flex; gap: 14px; }
-  .row2 > div { flex: 1; }
-  button.primary {
-    background: #4285f4; color: #fff; border: none; border-radius: 7px;
-    padding: 11px 28px; font-size: 1rem; cursor: pointer; font-weight: 600;
-    width: 100%; transition: background .2s;
-  }
-  button.primary:hover { background: #3070e0; }
-  button.primary:disabled { background: #aaa; cursor: default; }
-  #msgBox { display:none; padding: 12px 16px; border-radius: 7px; margin-bottom: 16px; font-size: .93rem; }
-  .ok  { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-  .err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  th { background: #1c253a; color: #fff; padding: 9px 10px; text-align: left; }
-  td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .78rem; font-weight: 600; }
-  .b-wait    { background: #fff3cd; color: #856404; }
-  .b-ok      { background: #d4edda; color: #155724; }
-  .b-no      { background: #f8d7da; color: #721c24; }
-  #errStore  { display:none; color: #c00; text-align: center; padding: 40px; font-size: 1rem; }
-  #loading   { text-align: center; color: #888; padding: 40px; }
-  #appContent { display: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f7fa; color: #222; font-size: 14px; }
+
+header { background: #1c253a; color: #fff; padding: 18px 20px; }
+header h1 { font-size: 1.3rem; }
+header p  { font-size: .82rem; color: #94a5c8; margin-top: 3px; }
+
+main { max-width: 760px; margin: 22px auto; padding: 0 14px 60px; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 20px; margin-bottom: 20px; }
+h2 { font-size: 1rem; margin-bottom: 14px; color: #1c253a; border-bottom: 2px solid #e8eaf0; padding-bottom: 8px; }
+h3 { font-size: .9rem; color: #555; margin: 14px 0 8px; }
+
+label { display: block; font-size: .83rem; margin-bottom: 3px; color: #555; }
+select, input[type=text], input[type=date], textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid #d0d5dd;
+  border-radius: 6px; font-size: .9rem; margin-bottom: 12px;
+  transition: border-color .2s;
+}
+select:focus, input:focus, textarea:focus { outline: none; border-color: #4285f4; }
+textarea { resize: vertical; min-height: 60px; }
+
+.row2 { display: flex; gap: 12px; }
+.row2 > div { flex: 1; }
+
+/* Ferie banner */
+.ferie-banner { background: #fff3cd; border: 1px solid #ffc107; border-radius: 7px;
+  padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; cursor: pointer; }
+.ferie-banner input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: #e67e22; }
+.ferie-banner span { font-weight: 600; color: #856404; }
+
+/* Griglia giorni */
+.grid-scroll { overflow-x: auto; }
+table.avail { width: 100%; border-collapse: collapse; min-width: 560px; }
+table.avail th { background: #1c253a; color: #fff; padding: 8px 6px; font-size: .8rem; text-align: center; white-space: nowrap; }
+table.avail td { padding: 5px 6px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.avail tr:last-child td { border-bottom: none; }
+table.avail tr:nth-child(odd) td { background: #fafafa; }
+table.avail tr.disabled td { opacity: .4; pointer-events: none; }
+
+.day-label { font-weight: 600; font-size: .85rem; min-width: 36px; }
+.chk-cell { text-align: center; }
+.chk-cell input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: #4285f4; }
+input.t { width: 70px; padding: 5px 6px; border: 1px solid #d0d5dd; border-radius: 5px; font-size: .85rem; text-align: center; }
+input.t:focus { outline: none; border-color: #4285f4; }
+input.t:disabled { background: #f0f0f0; color: #aaa; }
+.sep { color: #aaa; font-size: .8rem; padding: 0 2px; }
+
+button.primary {
+  background: #4285f4; color: #fff; border: none; border-radius: 7px;
+  padding: 11px 28px; font-size: .95rem; cursor: pointer; font-weight: 600;
+  width: 100%; transition: background .2s; margin-top: 4px;
+}
+button.primary:hover { background: #3070e0; }
+button.primary:disabled { background: #aaa; cursor: default; }
+
+#msgBox { display:none; padding: 11px 14px; border-radius: 7px; margin-bottom: 14px; font-size: .88rem; }
+.ok  { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+/* Storico */
+table.storico { width: 100%; border-collapse: collapse; font-size: .84rem; }
+table.storico th { background: #1c253a; color: #fff; padding: 8px 10px; text-align: left; }
+table.storico td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.storico tr:last-child td { border-bottom: none; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .76rem; font-weight: 600; }
+.b-wait { background: #fff3cd; color: #856404; }
+.b-ok   { background: #d4edda; color: #155724; }
+.b-no   { background: #f8d7da; color: #721c24; }
+
+#errStore { display:none; color: #c00; text-align: center; padding: 40px; font-size: 1rem; }
+#loading  { text-align: center; color: #888; padding: 40px; }
+#appContent { display: none; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Richieste Turni</h1>
+  <h1>Disponibilità Settimanale</h1>
   <p id="hdrSub">Caricamento…</p>
 </header>
 
-<div id="errStore"><strong>Link non valido.</strong><br>Contatta il responsabile per ricevere il link corretto.</div>
-<div id="loading">Caricamento dipendenti…</div>
+<div id="errStore"><strong>Link non valido.</strong><br>Contatta il responsabile per il link corretto.</div>
+<div id="loading">Caricamento…</div>
 
 <main id="appContent">
 
-  <!-- FORM NUOVA RICHIESTA -->
+  <!-- FORM -->
   <div class="card">
-    <h2>Nuova richiesta</h2>
+    <h2>Invia disponibilità per la settimana</h2>
     <div id="msgBox"></div>
 
-    <label>Il tuo nome</label>
-    <select id="selNome"><option value="">— seleziona —</option></select>
-
-    <label>Tipo di richiesta</label>
-    <select id="selTipo">
-      <option value="ferie">Ferie (intera settimana)</option>
-      <option value="pir">Permesso (PIR)</option>
-      <option value="preferenza">Preferenza orario</option>
-    </select>
-
     <div class="row2">
+      <div>
+        <label>Il tuo nome</label>
+        <select id="selNome"><option value="">— seleziona —</option></select>
+      </div>
       <div>
         <label>Settimana dal (lunedì)</label>
         <input type="date" id="inpSettimana">
       </div>
-      <div id="divGiorno">
-        <label>Giorno</label>
-        <select id="selGiorno">
-          <option value="0">Lunedì</option>
-          <option value="1">Martedì</option>
-          <option value="2">Mercoledì</option>
-          <option value="3">Giovedì</option>
-          <option value="4">Venerdì</option>
-          <option value="5">Sabato</option>
-          <option value="6">Domenica</option>
-        </select>
-      </div>
     </div>
 
-    <label>Note (opzionale)</label>
-    <textarea id="inpNote" placeholder="Es. preferisco pomeriggio, rientro da ferie il…"></textarea>
+    <!-- Ferie -->
+    <label class="ferie-banner" id="ferieBanner">
+      <input type="checkbox" id="chkFerie" onchange="onFerieChange()">
+      <span>Ferie — intera settimana</span>
+    </label>
 
-    <button class="primary" id="btnInvia" onclick="inviaRichiesta()">Invia richiesta</button>
+    <!-- Griglia giorni -->
+    <div class="grid-scroll">
+    <table class="avail" id="tblGrid">
+      <thead>
+        <tr>
+          <th>Giorno</th>
+          <th>Riposo</th>
+          <th>PIR</th>
+          <th colspan="3">Finestra 1</th>
+          <th>2ª Fin.</th>
+          <th colspan="3">Finestra 2</th>
+        </tr>
+      </thead>
+      <tbody id="gridBody"></tbody>
+    </table>
+    </div>
+
+    <h3>Note aggiuntive (opzionale)</h3>
+    <textarea id="inpNote" placeholder="Eventuali note per il responsabile…"></textarea>
+
+    <button class="primary" id="btnInvia" onclick="inviaRichiesta()">Invia disponibilità</button>
   </div>
 
-  <!-- STORICO RICHIESTE -->
+  <!-- STORICO -->
   <div class="card">
-    <h2>Le mie richieste</h2>
-    <div id="tblWrap"><em style="color:#999;font-size:.9rem">Seleziona il tuo nome per vedere le richieste.</em></div>
+    <h2>Le mie richieste precedenti</h2>
+    <div id="tblWrap"><em style="color:#999;font-size:.86rem">Seleziona il tuo nome per vedere le richieste.</em></div>
   </div>
 
 </main>
@@ -109,156 +147,227 @@
 <script>
 const SUPABASE_URL = "https://gbduwazrhvqxljmjtklf.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiZHV3YXpyaHZxeGxqbWp0a2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MzM2NTAsImV4cCI6MjA5ODIwOTY1MH0.qwzoDwqmAUv3OqR3SpffnuUkmwYQPPEjpedVWIeVsVI";
-
-const params = new URLSearchParams(location.search);
+const params  = new URLSearchParams(location.search);
 const storeId = params.get("store") || "";
+const GIORNI  = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
 
-const headers = {
+const hdrs = {
   "apikey": SUPABASE_KEY,
   "Authorization": "Bearer " + SUPABASE_KEY,
   "Content-Type": "application/json"
 };
 
 async function sbGet(path) {
-  const r = await fetch(SUPABASE_URL + path, { headers });
+  const r = await fetch(SUPABASE_URL + path, { headers: hdrs });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
-
 async function sbPost(path, body) {
-  const r = await fetch(SUPABASE_URL + path, { method: "POST", headers, body: JSON.stringify(body) });
+  const r = await fetch(SUPABASE_URL + path, { method:"POST", headers: hdrs, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(await r.text());
 }
 
-// ── Inizializzazione ──────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
   if (!storeId) {
     document.getElementById("errStore").style.display = "block";
-    document.getElementById("loading").style.display = "none";
+    document.getElementById("loading").style.display  = "none";
     return;
   }
-
   try {
-    const dipendenti = await sbGet(`/rest/v1/dipendenti_sync?store_id=eq.${encodeURIComponent(storeId)}&select=nome_completo&order=nome_completo.asc`);
-    document.getElementById("loading").style.display = "none";
+    const dips = await sbGet(`/rest/v1/dipendenti_sync?store_id=eq.${encodeURIComponent(storeId)}&select=nome_completo&order=nome_completo.asc`);
+    document.getElementById("loading").style.display  = "none";
     document.getElementById("appContent").style.display = "block";
-    document.getElementById("hdrSub").textContent = "Invia la tua richiesta al responsabile";
+    document.getElementById("hdrSub").textContent = "Inserisci la tua disponibilità per la settimana";
 
     const sel = document.getElementById("selNome");
-    dipendenti.forEach(d => {
+    dips.forEach(d => {
       const opt = document.createElement("option");
-      opt.value = d.nome_completo;
-      opt.textContent = d.nome_completo;
+      opt.value = opt.textContent = d.nome_completo;
       sel.appendChild(opt);
     });
 
-    // Imposta lunedì più prossimo come default
+    // Lunedì prossimo
     const oggi = new Date();
     const diff = (1 - oggi.getDay() + 7) % 7 || 7;
-    const lun = new Date(oggi);
-    lun.setDate(oggi.getDate() + diff);
-    document.getElementById("inpSettimana").value = lun.toISOString().slice(0, 10);
+    const lun  = new Date(oggi); lun.setDate(oggi.getDate() + diff);
+    document.getElementById("inpSettimana").value = lun.toISOString().slice(0,10);
+
+    buildGrid();
 
     sel.addEventListener("change", () => {
-      if (sel.value) caricaMieRichieste(sel.value);
-      else document.getElementById("tblWrap").innerHTML = "<em style='color:#999;font-size:.9rem'>Seleziona il tuo nome per vedere le richieste.</em>";
+      if (sel.value) caricaStoico(sel.value);
+      else document.getElementById("tblWrap").innerHTML = "<em style='color:#999;font-size:.86rem'>Seleziona il tuo nome per vedere le richieste.</em>";
     });
-
-    document.getElementById("selTipo").addEventListener("change", aggiornaVisibilitaGiorno);
-    aggiornaVisibilitaGiorno();
-
-  } catch (err) {
+  } catch(err) {
     document.getElementById("loading").textContent = "Errore di connessione. Riprova.";
     console.error(err);
   }
 });
 
-function aggiornaVisibilitaGiorno() {
-  const tipo = document.getElementById("selTipo").value;
-  document.getElementById("divGiorno").style.display = tipo === "ferie" ? "none" : "block";
-}
-
-// ── Invia richiesta ──────────────────────────────────────────
-async function inviaRichiesta() {
-  const nome      = document.getElementById("selNome").value;
-  const tipo      = document.getElementById("selTipo").value;
-  const settimana = document.getElementById("inpSettimana").value;
-  const giorno    = tipo === "ferie" ? "" : document.getElementById("selGiorno").value;
-  const note      = document.getElementById("inpNote").value.trim();
-
-  if (!nome)      { mostraMsg("Seleziona il tuo nome.", false); return; }
-  if (!settimana) { mostraMsg("Inserisci la settimana di riferimento.", false); return; }
-
-  const btn = document.getElementById("btnInvia");
-  btn.disabled = true;
-  btn.textContent = "Invio…";
-
-  try {
-    await sbPost("/rest/v1/richieste", {
-      store_id: storeId,
-      nome_dipendente: nome,
-      settimana,
-      tipo,
-      giorno,
-      note
-    });
-    mostraMsg("Richiesta inviata! Il responsabile la gestirà a breve.", true);
-    document.getElementById("inpNote").value = "";
-    caricaMieRichieste(nome);
-  } catch (err) {
-    mostraMsg("Errore nell'invio. Riprova.", false);
-    console.error(err);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Invia richiesta";
+// ── Griglia giorni ─────────────────────────────────────────
+function buildGrid() {
+  const tbody = document.getElementById("gridBody");
+  tbody.innerHTML = "";
+  for (let i = 0; i < 7; i++) {
+    const tr = document.createElement("tr");
+    tr.id = "row" + i;
+    tr.innerHTML = `
+      <td class="day-label">${GIORNI[i].slice(0,3)}</td>
+      <td class="chk-cell"><input type="checkbox" id="off${i}" onchange="onOffChange(${i})"></td>
+      <td class="chk-cell"><input type="checkbox" id="pir${i}"></td>
+      <td><input class="t" type="text" id="e1_${i}" value="00:00" placeholder="00:00"></td>
+      <td class="sep">→</td>
+      <td><input class="t" type="text" id="u1_${i}" value="24:00" placeholder="24:00"></td>
+      <td class="chk-cell"><input type="checkbox" id="en2_${i}" onchange="onWin2Change(${i})"></td>
+      <td><input class="t" type="text" id="e2_${i}" value="00:00" placeholder="00:00" disabled></td>
+      <td class="sep">→</td>
+      <td><input class="t" type="text" id="u2_${i}" value="00:00" placeholder="00:00" disabled></td>
+    `;
+    tbody.appendChild(tr);
   }
 }
 
-// ── Storico ──────────────────────────────────────────────────
-async function caricaMieRichieste(nome) {
+function onOffChange(i) {
+  const off = document.getElementById("off"+i).checked;
+  ["e1_","u1_","pir","en2_","e2_","u2_"].forEach(p => {
+    const el = document.getElementById(p+i);
+    if (el) el.disabled = off;
+  });
+  if (off) {
+    document.getElementById("en2_"+i).checked = false;
+    document.getElementById("e2_"+i).disabled = true;
+    document.getElementById("u2_"+i).disabled = true;
+  }
+}
+
+function onWin2Change(i) {
+  const en = document.getElementById("en2_"+i).checked;
+  const e2 = document.getElementById("e2_"+i);
+  const u2 = document.getElementById("u2_"+i);
+  e2.disabled = !en; u2.disabled = !en;
+  if (en && e2.value === "00:00" && u2.value === "00:00") {
+    e2.value = "12:00"; u2.value = "16:00";
+  }
+}
+
+function onFerieChange() {
+  const ferie = document.getElementById("chkFerie").checked;
+  const tbody = document.getElementById("gridBody");
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.classList.toggle("disabled", ferie);
+  });
+}
+
+// ── Legge griglia → oggetto dati ──────────────────────────
+function leggiGriglia() {
+  const d = {
+    ferie: document.getElementById("chkFerie").checked ? 1 : 0,
+    pir:   [], off: [],
+    ent1: [], usc1: [],
+    ent2: [], usc2: []
+  };
+  for (let i = 0; i < 7; i++) {
+    d.pir.push(document.getElementById("pir"+i).checked ? 1 : 0);
+    d.off.push(document.getElementById("off"+i).checked ? 1 : 0);
+    d.ent1.push(document.getElementById("e1_"+i).value || "00:00");
+    d.usc1.push(document.getElementById("u1_"+i).value || "24:00");
+    const en2 = document.getElementById("en2_"+i).checked;
+    d.ent2.push(en2 ? (document.getElementById("e2_"+i).value || "00:00") : "00:00");
+    d.usc2.push(en2 ? (document.getElementById("u2_"+i).value || "00:00") : "00:00");
+  }
+  return d;
+}
+
+// ── Invia ──────────────────────────────────────────────────
+async function inviaRichiesta() {
+  const nome      = document.getElementById("selNome").value;
+  const settimana = document.getElementById("inpSettimana").value;
+  const note      = document.getElementById("inpNote").value.trim();
+
+  if (!nome)      { mostraMsg("Seleziona il tuo nome.", false); return; }
+  if (!settimana) { mostraMsg("Inserisci la settimana.", false); return; }
+
+  const btn = document.getElementById("btnInvia");
+  btn.disabled = true; btn.textContent = "Invio…";
+
+  try {
+    const dati = leggiGriglia();
+    await sbPost("/rest/v1/richieste", {
+      store_id:        storeId,
+      nome_dipendente: nome,
+      settimana,
+      tipo:            "disponibilita",
+      giorno:          "",
+      note,
+      dati_json:       JSON.stringify(dati)
+    });
+    mostraMsg("Disponibilità inviata! Il responsabile la gestirà a breve.", true);
+    document.getElementById("inpNote").value = "";
+    document.getElementById("chkFerie").checked = false;
+    onFerieChange();
+    buildGrid();
+    caricaStoico(nome);
+  } catch(err) {
+    mostraMsg("Errore nell'invio. Riprova.", false);
+    console.error(err);
+  } finally {
+    btn.disabled = false; btn.textContent = "Invia disponibilità";
+  }
+}
+
+// ── Storico ────────────────────────────────────────────────
+async function caricaStoico(nome) {
   const wrap = document.getElementById("tblWrap");
-  wrap.innerHTML = "<em style='color:#999;font-size:.9rem'>Caricamento…</em>";
+  wrap.innerHTML = "<em style='color:#999;font-size:.86rem'>Caricamento…</em>";
   try {
     const list = await sbGet(`/rest/v1/richieste?store_id=eq.${encodeURIComponent(storeId)}&nome_dipendente=eq.${encodeURIComponent(nome)}&order=created_at.desc&select=*`);
     if (!list.length) {
-      wrap.innerHTML = "<em style='color:#999;font-size:.9rem'>Nessuna richiesta ancora.</em>";
+      wrap.innerHTML = "<em style='color:#999;font-size:.86rem'>Nessuna richiesta ancora.</em>";
       return;
     }
-    const tipiLabel = { ferie: "Ferie", pir: "Permesso", preferenza: "Preferenza" };
-    const giorniLabel = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
-    let html = `<table><tr><th>Settimana</th><th>Tipo</th><th>Giorno</th><th>Note</th><th>Stato</th></tr>`;
+    let html = `<table class="storico"><tr><th>Settimana</th><th>Riepilogo</th><th>Note</th><th>Stato</th></tr>`;
     list.forEach(r => {
-      const tipo  = tipiLabel[r.tipo] || r.tipo;
-      const giorno = (r.tipo !== "ferie" && r.giorno !== "") ? (giorniLabel[parseInt(r.giorno)] || r.giorno) : "-";
-      let badgeClass = "b-wait", badgeLabel = "In attesa";
-      if (r.stato === "approvata") { badgeClass = "b-ok"; badgeLabel = "Approvata"; }
-      if (r.stato === "rifiutata") { badgeClass = "b-no"; badgeLabel = "Rifiutata"; }
+      let rie = "";
+      try {
+        const d = JSON.parse(r.dati_json || "{}");
+        if (d.ferie) {
+          rie = "🏖 Ferie intera settimana";
+        } else {
+          const piri = (d.pir||[]).map((v,i)=>v?GIORNI[i].slice(0,3):null).filter(Boolean);
+          const offi = (d.off||[]).map((v,i)=>v?GIORNI[i].slice(0,3):null).filter(Boolean);
+          const parts = [];
+          if (offi.length) parts.push("Riposo: " + offi.join(", "));
+          if (piri.length) parts.push("PIR: " + piri.join(", "));
+          rie = parts.join(" · ") || "Disponibilità standard";
+        }
+      } catch(e) { rie = r.tipo || "—"; }
+
+      let bc = "b-wait", bl = "In attesa";
+      if (r.stato === "approvata") { bc = "b-ok"; bl = "Approvata"; }
+      if (r.stato === "rifiutata") { bc = "b-no"; bl = "Rifiutata"; }
       html += `<tr>
         <td>${r.settimana}</td>
-        <td>${tipo}</td>
-        <td>${giorno}</td>
-        <td>${escHtml(r.note || "")}</td>
-        <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+        <td>${escHtml(rie)}</td>
+        <td>${escHtml(r.note||"")}</td>
+        <td><span class="badge ${bc}">${bl}</span></td>
       </tr>`;
     });
     html += "</table>";
     wrap.innerHTML = html;
-  } catch (err) {
-    wrap.innerHTML = "<em style='color:#c00;font-size:.9rem'>Errore nel caricamento delle richieste.</em>";
+  } catch(err) {
+    wrap.innerHTML = "<em style='color:#c00;font-size:.86rem'>Errore nel caricamento.</em>";
     console.error(err);
   }
 }
 
-function mostraMsg(testo, ok) {
+function mostraMsg(t, ok) {
   const el = document.getElementById("msgBox");
-  el.textContent = testo;
-  el.className = ok ? "ok" : "err";
-  el.style.display = "block";
+  el.textContent = t; el.className = ok ? "ok" : "err"; el.style.display = "block";
   setTimeout(() => { el.style.display = "none"; }, 5000);
 }
-
 function escHtml(s) {
-  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 </script>
 </body>
