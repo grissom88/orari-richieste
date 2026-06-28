@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Richieste Turni</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f5f7fa; color: #222; }
+  header { background: #1c253a; color: #fff; padding: 20px 24px; }
+  header h1 { font-size: 1.4rem; }
+  header p  { font-size: 0.85rem; color: #94a5c8; margin-top: 4px; }
+  main { max-width: 640px; margin: 28px auto; padding: 0 16px 60px; }
+  .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); padding: 24px; margin-bottom: 24px; }
+  h2 { font-size: 1.05rem; margin-bottom: 16px; color: #1c253a; }
+  label { display: block; font-size: .88rem; margin-bottom: 4px; color: #555; }
+  select, input, textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid #d0d5dd;
+    border-radius: 6px; font-size: .95rem; margin-bottom: 14px;
+    transition: border-color .2s;
+  }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: #4285f4; }
+  textarea { resize: vertical; min-height: 80px; }
+  .row2 { display: flex; gap: 14px; }
+  .row2 > div { flex: 1; }
+  button.primary {
+    background: #4285f4; color: #fff; border: none; border-radius: 7px;
+    padding: 11px 28px; font-size: 1rem; cursor: pointer; font-weight: 600;
+    width: 100%; transition: background .2s;
+  }
+  button.primary:hover { background: #3070e0; }
+  button.primary:disabled { background: #aaa; cursor: default; }
+  #msgBox { display:none; padding: 12px 16px; border-radius: 7px; margin-bottom: 16px; font-size: .93rem; }
+  .ok  { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th { background: #1c253a; color: #fff; padding: 9px 10px; text-align: left; }
+  td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .78rem; font-weight: 600; }
+  .b-wait    { background: #fff3cd; color: #856404; }
+  .b-ok      { background: #d4edda; color: #155724; }
+  .b-no      { background: #f8d7da; color: #721c24; }
+  #errStore  { display:none; color: #c00; text-align: center; padding: 40px; font-size: 1rem; }
+  #loading   { text-align: center; color: #888; padding: 40px; }
+  #appContent { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Richieste Turni</h1>
+  <p id="hdrSub">Caricamento…</p>
+</header>
+
+<div id="errStore"><strong>Link non valido.</strong><br>Contatta il responsabile per ricevere il link corretto.</div>
+<div id="loading">Caricamento dipendenti…</div>
+
+<main id="appContent">
+
+  <!-- FORM NUOVA RICHIESTA -->
+  <div class="card">
+    <h2>Nuova richiesta</h2>
+    <div id="msgBox"></div>
+
+    <label>Il tuo nome</label>
+    <select id="selNome"><option value="">— seleziona —</option></select>
+
+    <label>Tipo di richiesta</label>
+    <select id="selTipo">
+      <option value="ferie">Ferie (intera settimana)</option>
+      <option value="pir">Permesso (PIR)</option>
+      <option value="preferenza">Preferenza orario</option>
+    </select>
+
+    <div class="row2">
+      <div>
+        <label>Settimana dal (lunedì)</label>
+        <input type="date" id="inpSettimana">
+      </div>
+      <div id="divGiorno">
+        <label>Giorno</label>
+        <select id="selGiorno">
+          <option value="0">Lunedì</option>
+          <option value="1">Martedì</option>
+          <option value="2">Mercoledì</option>
+          <option value="3">Giovedì</option>
+          <option value="4">Venerdì</option>
+          <option value="5">Sabato</option>
+          <option value="6">Domenica</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Note (opzionale)</label>
+    <textarea id="inpNote" placeholder="Es. preferisco pomeriggio, rientro da ferie il…"></textarea>
+
+    <button class="primary" id="btnInvia" onclick="inviaRichiesta()">Invia richiesta</button>
+  </div>
+
+  <!-- STORICO RICHIESTE -->
+  <div class="card">
+    <h2>Le mie richieste</h2>
+    <div id="tblWrap"><em style="color:#999;font-size:.9rem">Seleziona il tuo nome per vedere le richieste.</em></div>
+  </div>
+
+</main>
+
+<script>
+const SUPABASE_URL = "https://gbduwazrhvqxljmjtklf.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiZHV3YXpyaHZxeGxqbWp0a2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MzM2NTAsImV4cCI6MjA5ODIwOTY1MH0.qwzoDwqmAUv3OqR3SpffnuUkmwYQPPEjpedVWIeVsVI";
+
+const params = new URLSearchParams(location.search);
+const storeId = params.get("store") || "";
+
+const headers = {
+  "apikey": SUPABASE_KEY,
+  "Authorization": "Bearer " + SUPABASE_KEY,
+  "Content-Type": "application/json"
+};
+
+async function sbGet(path) {
+  const r = await fetch(SUPABASE_URL + path, { headers });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function sbPost(path, body) {
+  const r = await fetch(SUPABASE_URL + path, { method: "POST", headers, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+// ── Inizializzazione ──────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", async () => {
+  if (!storeId) {
+    document.getElementById("errStore").style.display = "block";
+    document.getElementById("loading").style.display = "none";
+    return;
+  }
+
+  try {
+    const dipendenti = await sbGet(`/rest/v1/dipendenti_sync?store_id=eq.${encodeURIComponent(storeId)}&select=nome_completo&order=nome_completo.asc`);
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("appContent").style.display = "block";
+    document.getElementById("hdrSub").textContent = "Invia la tua richiesta al responsabile";
+
+    const sel = document.getElementById("selNome");
+    dipendenti.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d.nome_completo;
+      opt.textContent = d.nome_completo;
+      sel.appendChild(opt);
+    });
+
+    // Imposta lunedì più prossimo come default
+    const oggi = new Date();
+    const diff = (1 - oggi.getDay() + 7) % 7 || 7;
+    const lun = new Date(oggi);
+    lun.setDate(oggi.getDate() + diff);
+    document.getElementById("inpSettimana").value = lun.toISOString().slice(0, 10);
+
+    sel.addEventListener("change", () => {
+      if (sel.value) caricaMieRichieste(sel.value);
+      else document.getElementById("tblWrap").innerHTML = "<em style='color:#999;font-size:.9rem'>Seleziona il tuo nome per vedere le richieste.</em>";
+    });
+
+    document.getElementById("selTipo").addEventListener("change", aggiornaVisibilitaGiorno);
+    aggiornaVisibilitaGiorno();
+
+  } catch (err) {
+    document.getElementById("loading").textContent = "Errore di connessione. Riprova.";
+    console.error(err);
+  }
+});
+
+function aggiornaVisibilitaGiorno() {
+  const tipo = document.getElementById("selTipo").value;
+  document.getElementById("divGiorno").style.display = tipo === "ferie" ? "none" : "block";
+}
+
+// ── Invia richiesta ──────────────────────────────────────────
+async function inviaRichiesta() {
+  const nome      = document.getElementById("selNome").value;
+  const tipo      = document.getElementById("selTipo").value;
+  const settimana = document.getElementById("inpSettimana").value;
+  const giorno    = tipo === "ferie" ? "" : document.getElementById("selGiorno").value;
+  const note      = document.getElementById("inpNote").value.trim();
+
+  if (!nome)      { mostraMsg("Seleziona il tuo nome.", false); return; }
+  if (!settimana) { mostraMsg("Inserisci la settimana di riferimento.", false); return; }
+
+  const btn = document.getElementById("btnInvia");
+  btn.disabled = true;
+  btn.textContent = "Invio…";
+
+  try {
+    await sbPost("/rest/v1/richieste", {
+      store_id: storeId,
+      nome_dipendente: nome,
+      settimana,
+      tipo,
+      giorno,
+      note
+    });
+    mostraMsg("Richiesta inviata! Il responsabile la gestirà a breve.", true);
+    document.getElementById("inpNote").value = "";
+    caricaMieRichieste(nome);
+  } catch (err) {
+    mostraMsg("Errore nell'invio. Riprova.", false);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Invia richiesta";
+  }
+}
+
+// ── Storico ──────────────────────────────────────────────────
+async function caricaMieRichieste(nome) {
+  const wrap = document.getElementById("tblWrap");
+  wrap.innerHTML = "<em style='color:#999;font-size:.9rem'>Caricamento…</em>";
+  try {
+    const list = await sbGet(`/rest/v1/richieste?store_id=eq.${encodeURIComponent(storeId)}&nome_dipendente=eq.${encodeURIComponent(nome)}&order=created_at.desc&select=*`);
+    if (!list.length) {
+      wrap.innerHTML = "<em style='color:#999;font-size:.9rem'>Nessuna richiesta ancora.</em>";
+      return;
+    }
+    const tipiLabel = { ferie: "Ferie", pir: "Permesso", preferenza: "Preferenza" };
+    const giorniLabel = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
+    let html = `<table><tr><th>Settimana</th><th>Tipo</th><th>Giorno</th><th>Note</th><th>Stato</th></tr>`;
+    list.forEach(r => {
+      const tipo  = tipiLabel[r.tipo] || r.tipo;
+      const giorno = (r.tipo !== "ferie" && r.giorno !== "") ? (giorniLabel[parseInt(r.giorno)] || r.giorno) : "-";
+      let badgeClass = "b-wait", badgeLabel = "In attesa";
+      if (r.stato === "approvata") { badgeClass = "b-ok"; badgeLabel = "Approvata"; }
+      if (r.stato === "rifiutata") { badgeClass = "b-no"; badgeLabel = "Rifiutata"; }
+      html += `<tr>
+        <td>${r.settimana}</td>
+        <td>${tipo}</td>
+        <td>${giorno}</td>
+        <td>${escHtml(r.note || "")}</td>
+        <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+      </tr>`;
+    });
+    html += "</table>";
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = "<em style='color:#c00;font-size:.9rem'>Errore nel caricamento delle richieste.</em>";
+    console.error(err);
+  }
+}
+
+function mostraMsg(testo, ok) {
+  const el = document.getElementById("msgBox");
+  el.textContent = testo;
+  el.className = ok ? "ok" : "err";
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 5000);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+</script>
+</body>
+</html>
