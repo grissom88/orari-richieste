@@ -64,6 +64,15 @@ button.primary:disabled { background: #aaa; cursor: default; }
 .ok  { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 .err { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
+/* PIN step */
+#stepForm { display: none; }
+.pin-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 12px; }
+.pin-row input[type=password] { width: 100px; letter-spacing: 6px; font-size: 1.2rem; text-align: center; margin-bottom: 0; }
+.pin-row button { white-space: nowrap; width: auto; padding: 8px 20px; margin-top: 0; }
+.link-small { font-size: .8rem; color: #888; cursor: pointer; display: inline-block; margin-bottom: 14px; }
+.link-small:hover { color: #4285f4; }
+.nome-verificato { background: #f0f4ff; font-weight: 600; color: #1c253a; cursor: default; }
+
 /* Storico */
 table.storico { width: 100%; border-collapse: collapse; font-size: .84rem; }
 table.storico th { background: #1c253a; color: #fff; padding: 8px 10px; text-align: left; }
@@ -96,50 +105,71 @@ table.storico tr:last-child td { border-bottom: none; }
     <h2>Invia disponibilità per la settimana</h2>
     <div id="msgBox"></div>
 
-    <div class="row2">
-      <div>
-        <label>Il tuo nome</label>
-        <select id="selNome"><option value="">— seleziona —</option></select>
-      </div>
-      <div>
-        <label>Settimana dal (lunedì)</label>
-        <input type="date" id="inpSettimana">
+    <!-- Step 1: identificazione -->
+    <div id="stepId">
+      <div class="row2">
+        <div>
+          <label>Il tuo nome</label>
+          <select id="selNome"><option value="">— seleziona —</option></select>
+        </div>
+        <div>
+          <label>PIN (4 cifre)</label>
+          <div class="pin-row">
+            <input type="password" id="inpPin" maxlength="4" inputmode="numeric" placeholder="••••" autocomplete="off">
+            <button class="primary" id="btnAccedi" onclick="verificaPin()">Accedi</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Ferie -->
-    <label class="ferie-banner" id="ferieBanner">
-      <input type="checkbox" id="chkFerie" onchange="onFerieChange()">
-      <span>Ferie — intera settimana</span>
-    </label>
+    <!-- Step 2: form disponibilità (visibile dopo PIN verificato) -->
+    <div id="stepForm">
+      <div class="row2">
+        <div>
+          <label>Nome</label>
+          <input type="text" id="lblNome" readonly class="nome-verificato">
+        </div>
+        <div>
+          <label>Settimana dal (lunedì)</label>
+          <input type="date" id="inpSettimana">
+        </div>
+      </div>
+      <span class="link-small" onclick="cambiaUtente()">← Cambia utente</span>
 
-    <!-- Griglia giorni -->
-    <div class="grid-scroll">
-    <table class="avail" id="tblGrid">
-      <thead>
-        <tr>
-          <th>Giorno</th>
-          <th>Riposo</th>
-          <th>PIR</th>
-          <th colspan="3">Finestra 1</th>
-          <th>2ª Fin.</th>
-          <th colspan="3">Finestra 2</th>
-        </tr>
-      </thead>
-      <tbody id="gridBody"></tbody>
-    </table>
+      <!-- Ferie -->
+      <label class="ferie-banner" id="ferieBanner">
+        <input type="checkbox" id="chkFerie" onchange="onFerieChange()">
+        <span>Ferie — intera settimana</span>
+      </label>
+
+      <!-- Griglia giorni -->
+      <div class="grid-scroll">
+      <table class="avail" id="tblGrid">
+        <thead>
+          <tr>
+            <th>Giorno</th>
+            <th>Riposo</th>
+            <th>PIR</th>
+            <th colspan="3">Finestra 1</th>
+            <th>2ª Fin.</th>
+            <th colspan="3">Finestra 2</th>
+          </tr>
+        </thead>
+        <tbody id="gridBody"></tbody>
+      </table>
+      </div>
+
+      <h3>Note aggiuntive (opzionale)</h3>
+      <textarea id="inpNote" placeholder="Eventuali note per il responsabile…"></textarea>
+
+      <button class="primary" id="btnInvia" onclick="inviaRichiesta()">Invia disponibilità</button>
     </div>
-
-    <h3>Note aggiuntive (opzionale)</h3>
-    <textarea id="inpNote" placeholder="Eventuali note per il responsabile…"></textarea>
-
-    <button class="primary" id="btnInvia" onclick="inviaRichiesta()">Invia disponibilità</button>
   </div>
 
   <!-- STORICO -->
   <div class="card">
     <h2>Le mie richieste precedenti</h2>
-    <div id="tblWrap"><em style="color:#999;font-size:.86rem">Seleziona il tuo nome per vedere le richieste.</em></div>
+    <div id="tblWrap"><em style="color:#999;font-size:.86rem">Accedi per vedere le tue richieste.</em></div>
   </div>
 
 </main>
@@ -150,6 +180,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const params  = new URLSearchParams(location.search);
 const storeId = params.get("store") || "";
 const GIORNI  = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
+let currentNome = "";
 
 const hdrs = {
   "apikey": SUPABASE_KEY,
@@ -195,15 +226,60 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     buildGrid();
 
-    sel.addEventListener("change", () => {
-      if (sel.value) caricaStoico(sel.value);
-      else document.getElementById("tblWrap").innerHTML = "<em style='color:#999;font-size:.86rem'>Seleziona il tuo nome per vedere le richieste.</em>";
+    // Accedi premendo Invio nel campo PIN
+    document.getElementById("inpPin").addEventListener("keydown", e => {
+      if (e.key === "Enter") verificaPin();
     });
   } catch(err) {
     document.getElementById("loading").textContent = "Errore di connessione. Riprova.";
     console.error(err);
   }
 });
+
+// ── Verifica PIN ───────────────────────────────────────────
+async function verificaPin() {
+  const nome = document.getElementById("selNome").value;
+  const pin  = document.getElementById("inpPin").value.trim();
+  if (!nome) { mostraMsg("Seleziona prima il tuo nome.", false); return; }
+  if (!pin)  { mostraMsg("Inserisci il PIN.", false); return; }
+
+  const btn = document.getElementById("btnAccedi");
+  btn.disabled = true; btn.textContent = "Verifica…";
+
+  try {
+    const res = await sbGet(
+      `/rest/v1/dipendenti_sync?store_id=eq.${encodeURIComponent(storeId)}&nome_completo=eq.${encodeURIComponent(nome)}&pin=eq.${encodeURIComponent(pin)}&select=nome_completo`
+    );
+    if (res.length > 0) {
+      currentNome = nome;
+      document.getElementById("lblNome").value = nome;
+      document.getElementById("stepId").style.display   = "none";
+      document.getElementById("stepForm").style.display = "block";
+      document.getElementById("hdrSub").textContent = "Benvenuto/a, " + nome;
+      caricaStoico(nome);
+    } else {
+      mostraMsg("PIN non corretto. Contatta il responsabile.", false);
+      document.getElementById("inpPin").value = "";
+      document.getElementById("inpPin").focus();
+    }
+  } catch(err) {
+    mostraMsg("Errore di connessione. Riprova.", false);
+    console.error(err);
+  } finally {
+    btn.disabled = false; btn.textContent = "Accedi";
+  }
+}
+
+function cambiaUtente() {
+  currentNome = "";
+  document.getElementById("selNome").value = "";
+  document.getElementById("inpPin").value  = "";
+  document.getElementById("stepId").style.display   = "block";
+  document.getElementById("stepForm").style.display = "none";
+  document.getElementById("hdrSub").textContent = "Inserisci la tua disponibilità per la settimana";
+  document.getElementById("tblWrap").innerHTML = "<em style='color:#999;font-size:.86rem'>Accedi per vedere le tue richieste.</em>";
+  document.getElementById("msgBox").style.display = "none";
+}
 
 // ── Griglia giorni ─────────────────────────────────────────
 function buildGrid() {
@@ -281,11 +357,11 @@ function leggiGriglia() {
 
 // ── Invia ──────────────────────────────────────────────────
 async function inviaRichiesta() {
-  const nome      = document.getElementById("selNome").value;
+  const nome      = currentNome;
   const settimana = document.getElementById("inpSettimana").value;
   const note      = document.getElementById("inpNote").value.trim();
 
-  if (!nome)      { mostraMsg("Seleziona il tuo nome.", false); return; }
+  if (!nome)      { mostraMsg("Sessione scaduta. Ricarica la pagina.", false); return; }
   if (!settimana) { mostraMsg("Inserisci la settimana.", false); return; }
 
   const btn = document.getElementById("btnInvia");
