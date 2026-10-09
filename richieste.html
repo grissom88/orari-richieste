@@ -177,10 +177,15 @@ table.storico tr:last-child td { border-bottom: none; }
 <script>
 const SUPABASE_URL = "https://gbduwazrhvqxljmjtklf.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiZHV3YXpyaHZxeGxqbWp0a2xmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MzM2NTAsImV4cCI6MjA5ODIwOTY1MH0.qwzoDwqmAUv3OqR3SpffnuUkmwYQPPEjpedVWIeVsVI";
+// Fase 3 (09/10/2026): la pagina usa SOLO le funzioni del server. Il link contiene un
+// codice casuale del negozio (?c=...), non il suo numero; il PIN lo controlla il server
+// (salvato cifrato, max 5 errori ogni 15 minuti). La chiave qui sotto è pubblica per
+// natura e da sola non apre nessun dato.
 const params  = new URLSearchParams(location.search);
-const storeId = params.get("store") || "";
+const codice  = params.get("c") || "";
 const GIORNI  = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
 let currentNome = "";
+let currentPin  = "";
 
 const hdrs = {
   "apikey": SUPABASE_KEY,
@@ -188,25 +193,35 @@ const hdrs = {
   "Content-Type": "application/json"
 };
 
-async function sbGet(path) {
-  const r = await fetch(SUPABASE_URL + path, { headers: hdrs });
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-async function sbPost(path, body) {
-  const r = await fetch(SUPABASE_URL + path, { method:"POST", headers: hdrs, body: JSON.stringify(body) });
-  if (!r.ok) throw new Error(await r.text());
+// Chiama una funzione del server; in caso di errore usa il messaggio del server.
+async function sbRpc(nome, body) {
+  const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + nome, { method:"POST", headers: hdrs, body: JSON.stringify(body) });
+  const testo = await r.text();
+  if (!r.ok) {
+    let msg = "Errore di connessione. Riprova.";
+    try { const j = JSON.parse(testo); if (j && j.message) msg = j.message; } catch(e) {}
+    throw new Error(msg);
+  }
+  return testo ? JSON.parse(testo) : null;
 }
 
 // ── Init ───────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
-  if (!storeId) {
+  if (!codice) {
     document.getElementById("errStore").style.display = "block";
     document.getElementById("loading").style.display  = "none";
     return;
   }
   try {
-    const dips = await sbGet(`/rest/v1/dipendenti_sync?store_id=eq.${encodeURIComponent(storeId)}&select=nome_completo&order=nome_completo.asc`);
+    let negozio;
+    try {
+      negozio = await sbRpc("wl_pagina_negozio", { p_codice: codice });
+    } catch(e) {
+      document.getElementById("errStore").style.display = "block";
+      document.getElementById("loading").style.display  = "none";
+      return;
+    }
+    const dips = (negozio.dipendenti || []).map(n => ({ nome_completo: n }));
     document.getElementById("loading").style.display  = "none";
     document.getElementById("appContent").style.display = "block";
     document.getElementById("hdrSub").textContent = "Inserisci la tua disponibilità per la settimana";
@@ -222,7 +237,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     const oggi = new Date();
     const diff = (1 - oggi.getDay() + 7) % 7 || 7;
     const lun  = new Date(oggi); lun.setDate(oggi.getDate() + diff);
-    document.getElementById("inpSettimana").value = lun.toISOString().slice(0,10);
+    // Data locale, non toISOString(): quella è in UTC e tra mezzanotte e le 2
+    // (ora italiana) restituiva la domenica invece del lunedì.
+    const pad = n => String(n).padStart(2, "0");
+    document.getElementById("inpSettimana").value =
+      `${lun.getFullYear()}-${pad(lun.getMonth() + 1)}-${pad(lun.getDate())}`;
 
     buildGrid();
 
@@ -247,11 +266,10 @@ async function verificaPin() {
   btn.disabled = true; btn.textContent = "Verifica…";
 
   try {
-    const res = await sbGet(
-      `/rest/v1/dipendenti_sync?store_id=eq.${encodeURIComponent(storeId)}&nome_completo=eq.${encodeURIComponent(nome)}&pin=eq.${encodeURIComponent(pin)}&select=nome_completo`
-    );
-    if (res.length > 0) {
+    const ok = await sbRpc("wl_accedi_dipendente", { p_codice: codice, p_nome: nome, p_pin: pin });
+    if (ok === true) {
       currentNome = nome;
+      currentPin  = pin;
       document.getElementById("lblNome").value = nome;
       document.getElementById("stepId").style.display   = "none";
       document.getElementById("stepForm").style.display = "block";
@@ -263,7 +281,7 @@ async function verificaPin() {
       document.getElementById("inpPin").focus();
     }
   } catch(err) {
-    mostraMsg("Errore di connessione. Riprova.", false);
+    mostraMsg(err.message || "Errore di connessione. Riprova.", false);
     console.error(err);
   } finally {
     btn.disabled = false; btn.textContent = "Accedi";
@@ -272,6 +290,7 @@ async function verificaPin() {
 
 function cambiaUtente() {
   currentNome = "";
+  currentPin  = "";
   document.getElementById("selNome").value = "";
   document.getElementById("inpPin").value  = "";
   document.getElementById("stepId").style.display   = "block";
@@ -369,14 +388,15 @@ async function inviaRichiesta() {
 
   try {
     const dati = leggiGriglia();
-    await sbPost("/rest/v1/richieste", {
-      store_id:        storeId,
-      nome_dipendente: nome,
-      settimana,
-      tipo:            "disponibilita",
-      giorno:          "",
-      note,
-      dati_json:       JSON.stringify(dati)
+    await sbRpc("wl_invia_richiesta", {
+      p_codice:    codice,
+      p_nome:      nome,
+      p_pin:       currentPin,
+      p_settimana: settimana,
+      p_tipo:      "disponibilita",
+      p_giorno:    "",
+      p_note:      note,
+      p_dati_json: JSON.stringify(dati)
     });
     mostraMsg("Disponibilità inviata! Il responsabile la gestirà a breve.", true);
     document.getElementById("inpNote").value = "";
@@ -385,7 +405,7 @@ async function inviaRichiesta() {
     buildGrid();
     caricaStoico(nome);
   } catch(err) {
-    mostraMsg("Errore nell'invio. Riprova.", false);
+    mostraMsg(err.message || "Errore nell'invio. Riprova.", false);
     console.error(err);
   } finally {
     btn.disabled = false; btn.textContent = "Invia disponibilità";
@@ -397,7 +417,7 @@ async function caricaStoico(nome) {
   const wrap = document.getElementById("tblWrap");
   wrap.innerHTML = "<em style='color:#999;font-size:.86rem'>Caricamento…</em>";
   try {
-    const list = await sbGet(`/rest/v1/richieste?store_id=eq.${encodeURIComponent(storeId)}&nome_dipendente=eq.${encodeURIComponent(nome)}&order=created_at.desc&select=*`);
+    const list = (await sbRpc("wl_mie_richieste", { p_codice: codice, p_nome: nome, p_pin: currentPin })) || [];
     if (!list.length) {
       wrap.innerHTML = "<em style='color:#999;font-size:.86rem'>Nessuna richiesta ancora.</em>";
       return;
@@ -423,7 +443,7 @@ async function caricaStoico(nome) {
       if (r.stato === "approvata") { bc = "b-ok"; bl = "Approvata"; }
       if (r.stato === "rifiutata") { bc = "b-no"; bl = "Rifiutata"; }
       html += `<tr>
-        <td>${r.settimana}</td>
+        <td>${escHtml(r.settimana)}</td>
         <td>${escHtml(rie)}</td>
         <td>${escHtml(r.note||"")}</td>
         <td><span class="badge ${bc}">${bl}</span></td>
